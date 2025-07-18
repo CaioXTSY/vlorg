@@ -10,8 +10,4 @@ export class AppController {
     return this.appService.getHello();
   }
 
-  @Get('test-db')
-  async testDatabase(): Promise<string> {
-    return this.appService.testDatabase();
-  }
 }
