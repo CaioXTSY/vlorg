@@ -38,29 +38,29 @@ jobs:
         run: |
           sshpass -p "${{ secrets.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-            "cd /www/wwwroot/VorPlay && \
+            "cd /www/wwwroot/vlorg && \
              find . -mindepth 1 -maxdepth 1 ! -name '.env' -exec rm -rf {} +"
 
-      # 6) Copia a pasta dist inteira (cria /VorPlay/dist) e arquivos de configuração
+      # 6) Copia a pasta dist inteira (cria /vlorg/dist) e arquivos de configuração
       - name: Copy build & config to server
         run: |
-          # copia dist/ para o servidor, recriando /VorPlay/dist
+          # copia dist/ para o servidor, recriando /vlorg/dist
           sshpass -p "${{ secrets.SERVER_PASSWORD }}" \
             scp -o StrictHostKeyChecking=no -r \
             dist \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/www/wwwroot/VorPlay
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/www/wwwroot/vlorg
           # copia prisma e package files
           sshpass -p "${{ secrets.SERVER_PASSWORD }}" \
             scp -o StrictHostKeyChecking=no -r \
             prisma package.json package-lock.json \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/www/wwwroot/VorPlay
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/www/wwwroot/vlorg
 
       # 7) Executa deploy remoto: install, prisma, pm2
       - name: Remote deploy commands
         run: |
           sshpass -p "${{ secrets.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
-            "cd /www/wwwroot/VorPlay && \
+            "cd /www/wwwroot/vlorg && \
              echo '--- Instalando dependências de produção ---' && \
              npm ci --production && \
              echo '--- Gerando Prisma Client ---' && \
@@ -72,6 +72,6 @@ jobs:
                echo 'ℹ️ Pulando migrations'; \
              fi && \
              echo '--- Reiniciando PM2 ---' && \
-             pm2 delete VorPlay || true && \
-             pm2 start dist/main.js --name VorPlay -f && \
+             pm2 delete vlorg || true && \
+             pm2 start dist/main.js --name vlorg -f && \
              echo '✅ Deploy concluído com sucesso'"
