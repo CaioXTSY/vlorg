@@ -1,0 +1,77 @@
+name: Full clean & deploy via sshpass
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Checkout do código
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2) Setup Node.js e cache npm
+      - name: Setup Node.js & Cache npm
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # 3) Instala dependências e build local
+      - name: Install dependencies & Build
+        run: |
+          npm ci
+          npm run build
+
+      # 4) Instala sshpass
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      # 5) Limpa tudo no servidor, preservando apenas .env
+      - name: Clean remote directory (keep .env)
+        run: |
+          sshpass -p "${{ secrets.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+            "cd /www/wwwroot/VorPlay && \
+             find . -mindepth 1 -maxdepth 1 ! -name '.env' -exec rm -rf {} +"
+
+      # 6) Copia a pasta dist inteira (cria /VorPlay/dist) e arquivos de configuração
+      - name: Copy build & config to server
+        run: |
+          # copia dist/ para o servidor, recriando /VorPlay/dist
+          sshpass -p "${{ secrets.SERVER_PASSWORD }}" \
+            scp -o StrictHostKeyChecking=no -r \
+            dist \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/www/wwwroot/VorPlay
+          # copia prisma e package files
+          sshpass -p "${{ secrets.SERVER_PASSWORD }}" \
+            scp -o StrictHostKeyChecking=no -r \
+            prisma package.json package-lock.json \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/www/wwwroot/VorPlay
+
+      # 7) Executa deploy remoto: install, prisma, pm2
+      - name: Remote deploy commands
+        run: |
+          sshpass -p "${{ secrets.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
+            "cd /www/wwwroot/VorPlay && \
+             echo '--- Instalando dependências de produção ---' && \
+             npm ci --production && \
+             echo '--- Gerando Prisma Client ---' && \
+             npx prisma generate && \
+             echo '--- Aplicando migrations (se existirem) ---' && \
+             if [ -d prisma/migrations ] && [ \"\$(ls -A prisma/migrations)\" ]; then \
+               npx prisma migrate deploy || echo '⚠️ Sem novas migrations'; \
+             else \
+               echo 'ℹ️ Pulando migrations'; \
+             fi && \
+             echo '--- Reiniciando PM2 ---' && \
+             pm2 delete VorPlay || true && \
+             pm2 start dist/main.js --name VorPlay -f && \
+             echo '✅ Deploy concluído com sucesso'"
