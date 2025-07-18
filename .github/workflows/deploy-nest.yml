@@ -52,7 +52,7 @@ jobs:
           # copia prisma e package files
           sshpass -p "${{ secrets.SERVER_PASSWORD }}" \
             scp -o StrictHostKeyChecking=no -r \
-            prisma package.json package-lock.json \
+            prisma package.json package-lock.json ecosystem.config.js \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/www/wwwroot/vlorg
 
       # 7) Executa deploy remoto: install, prisma, pm2
@@ -61,8 +61,12 @@ jobs:
           sshpass -p "${{ secrets.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} \
             "cd /www/wwwroot/vlorg && \
+             echo '--- Criando diretório de logs ---' && \
+             mkdir -p logs && \
              echo '--- Instalando dependências de produção ---' && \
              npm ci --production && \
+             echo '--- Instalando swagger-ui-express especificamente ---' && \
+             npm install swagger-ui-express --save && \
              echo '--- Gerando Prisma Client ---' && \
              npx prisma generate && \
              echo '--- Aplicando migrations (se existirem) ---' && \
@@ -73,5 +77,7 @@ jobs:
              fi && \
              echo '--- Reiniciando PM2 ---' && \
              pm2 delete vlorg || true && \
-             pm2 start dist/main.js --name vlorg -f && \
+             pm2 start ecosystem.config.js && \
+             sleep 3 && \
+             pm2 logs vlorg --lines 10 && \
              echo '✅ Deploy concluído com sucesso'"
