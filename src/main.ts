@@ -5,6 +5,9 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Set global prefix for all routes
+  app.setGlobalPrefix('api/v1');
+
   // Enable CORS
   app.enableCors({
     origin: true,
@@ -20,7 +23,7 @@ async function bootstrap() {
     .build();
   
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document, {
+  SwaggerModule.setup('api/v1/docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
     },
@@ -38,6 +41,6 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3005;
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`📚 Swagger documentation: http://localhost:${port}/docs`);
+  console.log(`📚 Swagger documentation: http://localhost:${port}/api/v1/docs`);
 }
 bootstrap();
